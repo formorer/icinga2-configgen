@@ -1,0 +1,7 @@
+{{define "service"}}
+object Service "{{.Name}}" {
+	import "generic-service"
+	host_name = "{{.Host}}"
+	check_command = "dummy"
+}
+{{end}}
