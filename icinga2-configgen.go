@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"github.com/Pallinder/go-randomdata"
 	"github.com/cheggaaa/pb"
+	"github.com/dustinkirkland/golang-petname"
 	"gopkg.in/alecthomas/kingpin.v2"
+	//"github.com/pkg/profile"
 	"log"
-	"math/rand"
 	"os"
 	"path"
 	"sync"
@@ -31,8 +30,8 @@ var (
 
 var templates = template.New("foo")
 
-
 func main() {
+	//defer profile.Start().Stop()
 	kingpin.Version("0.0.1")
 	kingpin.Parse()
 
@@ -45,30 +44,37 @@ func main() {
 		log.Fatalf("Config directory %s is not a directory\n", *confDir)
 	}
 
-    finfo, err = os.Stat(*templateDir)
-    if err != nil {
-        log.Printf("Config directory %s does not exist, try to fallback to templates/\n", *templateDir)
-        *templateDir = "templates"
-        finfo, err = os.Stat(*templateDir)
-        if err != nil {
-            log.Fatalf("Failed, no template directory found\n")
-        }
-    }
-    templates = template.Must(template.ParseGlob(*templateDir + "/*.tmpl"))
+	finfo, err = os.Stat(*templateDir)
+	if err != nil {
+		log.Printf("Config directory %s does not exist, try to fallback to templates/\n", *templateDir)
+		*templateDir = "templates"
+		finfo, err = os.Stat(*templateDir)
+		if err != nil {
+			log.Fatalf("Failed, no template directory found\n")
+		}
+	}
+	templates = template.Must(template.ParseGlob(*templateDir + "/*.tmpl"))
 
 	log.Printf("Create %d hosts with %d services each", *numHosts, *numServices)
 	bar := pb.StartNew(*numHosts)
 	// create a syncgroup to make sure all templates are written before exiting
 	var wg sync.WaitGroup
+	concurrency := 20 // limit number of parallel goroutines
+	sem := make(chan bool, concurrency)
 	for host := 0; host < *numHosts; host++ {
+		sem <- true
 		// add us to the syncgroup
 		wg.Add(1)
 		go func() {
 			// remove from syncgroup if done
 			defer wg.Done()
+			defer func() { <-sem }()
 			genHost()
 			bar.Increment()
 		}()
+	}
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
 	}
 	// exit if all subroutines are done
 	wg.Wait()
@@ -105,6 +111,6 @@ func genHost() {
 }
 
 func getName() string {
-	name := randomdata.SillyName() + fmt.Sprintf("%4d", rand.Int())
+	name := petname.Generate(3, "")
 	return name
 }
