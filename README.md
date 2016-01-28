@@ -14,3 +14,6 @@ icinga2-configgen --hosts=50 --services=100 --confdir=/etc/icinga2/conf.d/
 
 This will generate 50 hosts with 100 services each and writes them, one file per host,
 into /etc/icinga2/conf.d/.
+
+The template directory defaults to /etc/icinga2-configgen, but falls back to
+templates/.

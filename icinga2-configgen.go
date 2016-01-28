@@ -1,16 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Pallinder/go-randomdata"
 	"github.com/cheggaaa/pb"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
+	"math/rand"
 	"os"
 	"path"
-	"math/rand"
 	"sync"
 	"text/template"
-	"fmt"
 )
 
 type Host struct {
@@ -26,9 +26,11 @@ var (
 	numHosts    = kingpin.Flag("hosts", "Number of hosts").Short('H').Required().Int()
 	numServices = kingpin.Flag("services", "Number of services per Host").Short('s').Required().Int()
 	confDir     = kingpin.Flag("confdir", "Output directory for configs").Short('c').Required().String()
+	templateDir = kingpin.Flag("tmpldir", "Template directory (defaults to /etc/icinga2-configgen/templates/ or templates/").PlaceHolder("TEMPLATE-DIR").Default("/etc/icinga2-configgen/").String()
 )
 
-var templates = template.Must(template.ParseGlob("templates/*.tmpl"))
+var templates = template.New("foo")
+
 
 func main() {
 	kingpin.Version("0.0.1")
@@ -42,6 +44,17 @@ func main() {
 	if !finfo.IsDir() {
 		log.Fatalf("Config directory %s is not a directory\n", *confDir)
 	}
+
+    finfo, err = os.Stat(*templateDir)
+    if err != nil {
+        log.Printf("Config directory %s does not exist, try to fallback to templates/\n", *templateDir)
+        *templateDir = "templates"
+        finfo, err = os.Stat(*templateDir)
+        if err != nil {
+            log.Fatalf("Failed, no template directory found\n")
+        }
+    }
+    templates = template.Must(template.ParseGlob(*templateDir + "/*.tmpl"))
 
 	log.Printf("Create %d hosts with %d services each", *numHosts, *numServices)
 	bar := pb.StartNew(*numHosts)
